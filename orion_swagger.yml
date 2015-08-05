@@ -35,11 +35,12 @@ paths:
       responses:
         200:
           description: |
-            Depending on the `parts` parameter returns metadata, file contents, or a multipart response giving both.
+            Depending on the `parts` parameter, returns one of: metadata, file contents, or a
+            multipart response giving both metadata and contents.
           schema:
             # TODO returns file contents application/octet-stream when parts=body
             # TODO returns a multipart request when parts=meta,body
-            $ref: '#/definitions/FileMetadata'
+            $ref: '#/definitions/File'
         default:
           description: Unexpected error
           schema:
@@ -77,10 +78,7 @@ paths:
           type: string
       responses:
         200:
-          description: |
-            A workspace. This response is designed to conform to the `FileMetadata` representation, in addition to providing
-            additional workspace-level metadata. This allows a client to treat the response purely as a directory entry,
-            or to access additional metadata attributes if required.
+          description: A workspace.
           schema:
             $ref: '#/definitions/Workspace'
         default:
@@ -128,8 +126,7 @@ definitions:
       Name:
         type: string
 
-
-  FileMetadata:
+  File:
     allOf:
       - $ref: '#/definitions/AbstractHasChildren'
       - $ref: '#/definitions/AbstractHasContent'
@@ -140,8 +137,8 @@ definitions:
       - Parents
     properties:
       Attributes:
-        $ref: '#/definitions/FileAttributes'
         description: Additional platform-specific attributes of this file.
+        $ref: '#/definitions/FileAttributes'
       Directory:
         type: boolean
         description: Whether this file represents a directory.
@@ -159,6 +156,9 @@ definitions:
       Length:
         type: integer
         format: int64
+        description: |
+          Length of this file in bytes. When `Directory == true`, this field is not required
+          to contain a meaningful value.
       LocalTimeStamp:
         $ref: '#/definitions/TimeStamp'
         description: Time
@@ -210,20 +210,24 @@ definitions:
           $ref: '#/definitions/WorkspaceRef'
 
   WorkspaceRef:
+    description: "A reference to a workspace. Gives information about where the workspace's complete metadata can be found."
     allOf:
       - $ref: '#/definitions/AbstractHasId'
       - $ref: '#/definitions/AbstractHasLocation'
 
   Workspace:
+    description: |
+      A workspace. `Workspace` extends the `File` representation, and provides additional workspace-level
+      metadata. This allows a client to treat a Workspace purely as a directory entry, or to access additional
+      metadata attributes if required. A Workspace's `Directory` property is always `true`.
     allOf:
-      - $ref: '#/definitions/AbstractHasChildren'
-      - $ref: '#/definitions/AbstractHasId'
+      - $ref: '#/definitions/File'
+#      - $ref: '#/definitions/AbstractHasChildren'
+#      - $ref: '#/definitions/AbstractHasId'
 #      - $ref: '#/definitions/AbstractHasLocation'
     properties:
-      Directory:
-        type: boolean
-        enum: ["true"]
       Projects:
+        description: The "projects" (top-level folders) located in this workspace.
         type: array
         items:
           $ref: '#/definitions/ProjectRef'
