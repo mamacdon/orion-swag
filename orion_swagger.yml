@@ -1,0 +1,242 @@
+swagger: '2.0'
+info:
+  title: Orion
+  description: Orion REST API
+  version: "1.0"
+# the domain of the service
+host: localhost:8081
+# array of all schemes that your API supports
+schemes:
+  - https
+  - http
+# will be prefixed to all paths
+#basePath: /v1
+produces:
+  - application/json
+paths:
+  /file:
+    get:
+      summary: Get file
+      description: |
+        Get contents or metadata for a file or directory.
+      parameters:
+        - name: parts
+          in: query
+          required: false
+          type: string
+# FIXME
+#          schema:
+#            $ref: '#/definitions/FileParts'
+        - name: depth
+          in: query
+          required: false
+          type: integer
+          format: int64
+      tags:
+        - File
+      responses:
+        200:
+          description: TODO
+          schema:
+            # TODO returns file contents when parts=body
+            # TODO multipart when parts=meta,body
+            $ref: '#/definitions/FileMetadata'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /workspaces:
+    get:
+      summary: Get workspaces
+      description: |
+        List workspcaes
+      parameters:
+        - name: end_latitude
+          in: query
+          description: Latitude component of end location.
+          required: true
+          type: number
+          format: double
+        - name: end_longitude
+          in: query
+          description: Longitude component of end location.
+          required: true
+          type: number
+          format: double
+      tags:
+        - Workspace
+      responses:
+        200:
+          description: Workspaces
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Workspace'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+definitions:
+  AbstractHasChildren:
+    allOf:
+      - $ref: '#/definitions/AbstractHasLocation'
+    required:
+      - ChildrenLocation
+    properties:
+      ChildrenLocation:
+        description: Location that provides this elements's children.
+        type: string
+      Children:
+        description: The children of this element.
+        type: array
+        items:
+          type: object
+  AbstractHasContent:
+    required:
+      - ContentLocation
+    properties:
+      ContentLocation:
+        type: string
+  AbstractHasId:
+    required:
+      - Id
+    properties:
+      Id:
+        type: string
+  AbstractHasLocation:
+    required:
+      - Location
+    properties:
+      Location:
+        type: string
+  AbstractHasName:
+    required:
+      - Name
+    properties:
+      Name:
+        type: string
+  AbstractTransferable:
+    properties:
+      ExportLocation:
+        type: string
+        description: Location that provides export functionality. Absent when `Directory == false`.
+      ImportLocation:
+        type: string
+        description: Location that provides import to this file.
+
+  FileMetadata:
+    allOf:
+      - $ref: '#/definitions/AbstractHasChildren'
+      - $ref: '#/definitions/AbstractHasContent'
+      - $ref: '#/definitions/AbstractTransferable'
+    required:
+      - Directory
+      - LocalTimeStamp
+      - Name
+      - Parents
+    properties:
+      Attributes:
+        $ref: '#/definitions/FileAttributes'
+        description: Additional platform-specific attributes of this file.
+      Directory:
+        type: boolean
+        description: Whether this file represents a directory.
+      ETag:
+        type: string
+        description: ETag for this file. Absent when `Directory == true`.
+      Git:
+        $ref: '#/definitions/GitMetadata'
+      Length:
+        type: integer
+        format: int64
+      LocalTimeStamp:
+        $ref: '#/definitions/TimeStamp'
+        description: Time
+      Name:
+        type: string
+      Parents:
+        type: array
+        items:
+          $ref: '#/definitions/ParentRef'
+
+  FileAttributes:
+    properties:
+      Executable:
+        type: boolean
+      ReadOnly:
+        type: boolean
+      SymLink:
+        type: boolean
+
+  FileParts:
+    type: array
+    items:
+      type: string
+      enum: ["meta", "body"]
+
+  GitMetadata:
+    description: TODO
+
+  ParentRef:
+    allOf:
+      - $ref: '#/definitions/AbstractHasName'
+      - $ref: '#/definitions/AbstractHasChildren'
+#      - $ref: '#/definitions/AbstractHasLocation'
+
+  ProjectRef:
+    description: A reference to a "project" (i.e. a top-level folder in a workspace).
+    allOf:
+      - $ref: '#/definitions/AbstractHasId'
+      - $ref: '#/definitions/AbstractHasName'
+
+  TimeStamp:
+    description: Time in milliseconds since 1 January 1970 UTC. This value is expressed relative to the server's local timezone.
+    type: number
+
+  Workspaces:
+    allOf:
+      - $ref: '#/definitions/AbstractHasId'
+      - $ref: '#/definitions/AbstractHasName'
+    properties:
+      UserName:
+        type: string
+      Workspaces:
+        type: array
+        items:
+          $ref: '#/definitions/WorkspaceRef'
+
+  WorkspaceRef:
+    allOf:
+      - $ref: '#/definitions/AbstractHasId'
+      - $ref: '#/definitions/AbstractHasLocation'
+
+  Workspace:
+    allOf:
+      - $ref: '#/definitions/AbstractHasChildren'
+      - $ref: '#/definitions/AbstractHasId'
+#      - $ref: '#/definitions/AbstractHasLocation'
+    properties:
+      Directory:
+        type: boolean
+        enum: ["true"]
+      Projects:
+        type: array
+        items:
+          $ref: '#/definitions/ProjectRef'
+
+  Error:
+    properties:
+      Severity:
+        type: string
+      Message:
+        type: string
+      HttpCode:
+        type: integer
+        minimum: 100
+        maximum: 600
+        exclusiveMaximum: true
+      Code:
+        type: integer
+        minimum: 0
