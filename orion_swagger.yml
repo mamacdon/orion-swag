@@ -14,69 +14,79 @@ schemes:
 produces:
   - application/json
 paths:
-  /file:
+  /file/{path}:
     get:
-      summary: Get file
+      summary: |
+        Get file or directory located at {path}.
       description: |
-        Get contents or metadata for a file or directory.
-      parameters:
-        - name: parts
-          in: query
-          required: false
-          type: string
-# FIXME
-#          schema:
-#            $ref: '#/definitions/FileParts'
-        - name: depth
-          in: query
-          required: false
-          type: integer
-          format: int64
+        Returns metadata or contents for a file or directory.
       tags:
         - File
+      parameters:
+        - $ref: '#/parameters/DepthParam'
+        - $ref: '#/parameters/FilePartsParam'
+        - $ref: '#/parameters/OrionVersionParam'
+        - name: path
+          in: path
+          description: Path to the file or directory.
+          required: true
+          type: string
+      produces: ["application/json", "application/octet-stream"]
       responses:
         200:
-          description: TODO
+          description: |
+            Depending on the `parts` parameter returns metadata, file contents, or a multipart response giving both.
           schema:
-            # TODO returns file contents when parts=body
-            # TODO multipart when parts=meta,body
+            # TODO returns file contents application/octet-stream when parts=body
+            # TODO returns a multipart request when parts=meta,body
             $ref: '#/definitions/FileMetadata'
         default:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
-  /workspaces:
+  /workspace:
     get:
-      summary: Get workspaces
+      summary: List available workspaces.
       description: |
-        List workspcaes
-      parameters:
-        - name: end_latitude
-          in: query
-          description: Latitude component of end location.
-          required: true
-          type: number
-          format: double
-        - name: end_longitude
-          in: query
-          description: Longitude component of end location.
-          required: true
-          type: number
-          format: double
+        Workspace metadata is tied to the user owning the workspace. The top level attributes in the response describe
+        the user that performed the request. The Workspaces element lists all workspaces accessible by that user.
       tags:
         - Workspace
+      parameters:
+        - $ref: '#/parameters/OrionVersionParam'
       responses:
         200:
-          description: Workspaces
+          description: List of user's workspaces
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/Workspace'
+            $ref: '#/definitions/Workspaces'
         default:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
-
+  /workspace/{id}:
+    get:
+      summary: Get workspace by Id.
+      tags:
+        - Workspace
+      parameters:
+        - $ref: '#/parameters/OrionVersionParam'
+        - name: id
+          in: path
+          description: Id of the workspace to fetch.
+          required: true
+          type: string
+      responses:
+        200:
+          description: |
+            A workspace. This response is designed to conform to the `FileMetadata` representation, in addition to providing
+            additional workspace-level metadata. This allows a client to treat the response purely as a directory entry,
+            or to access additional metadata attributes if required.
+          schema:
+            $ref: '#/definitions/Workspace'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
 
 definitions:
   AbstractHasChildren:
@@ -117,20 +127,12 @@ definitions:
     properties:
       Name:
         type: string
-  AbstractTransferable:
-    properties:
-      ExportLocation:
-        type: string
-        description: Location that provides export functionality. Absent when `Directory == false`.
-      ImportLocation:
-        type: string
-        description: Location that provides import to this file.
+
 
   FileMetadata:
     allOf:
       - $ref: '#/definitions/AbstractHasChildren'
       - $ref: '#/definitions/AbstractHasContent'
-      - $ref: '#/definitions/AbstractTransferable'
     required:
       - Directory
       - LocalTimeStamp
@@ -146,8 +148,14 @@ definitions:
       ETag:
         type: string
         description: ETag for this file. Absent when `Directory == true`.
+      ExportLocation:
+        type: string
+        description: Location that provides export functionality. Absent when `Directory == false`.
       Git:
         $ref: '#/definitions/GitMetadata'
+      ImportLocation:
+        type: string
+        description: Location that provides import to this file.
       Length:
         type: integer
         format: int64
@@ -169,12 +177,6 @@ definitions:
         type: boolean
       SymLink:
         type: boolean
-
-  FileParts:
-    type: array
-    items:
-      type: string
-      enum: ["meta", "body"]
 
   GitMetadata:
     description: TODO
@@ -227,16 +229,64 @@ definitions:
           $ref: '#/definitions/ProjectRef'
 
   Error:
+    required:
+      - HttpCode
+      - Message
+      - Severity
     properties:
-      Severity:
+      Cause:
+        type: object
+        description: JSON object representation of another status that is the cause of this status (used for exception chaining).
+      Code:
+        type: integer
+        description: Application specific integer response code.
+        default: 0
+      DetailedMessage:
         type: string
-      Message:
-        type: string
+        description: Detailed error message.
       HttpCode:
         type: integer
+        description: Integer HTTP response code.
         minimum: 100
         maximum: 600
         exclusiveMaximum: true
-      Code:
-        type: integer
-        minimum: 0
+      Message:
+        type: string
+        description: A high level error message.
+      SeeAlso:
+        type: string
+        description: URL of a page for more information on how to resolve the error.
+      Severity:
+        type: string
+        enum: ["Error", "Warning", "Info", "Cancel", "Ok"]
+
+parameters:
+  FilePartsParam:
+    name: parts
+    in: query
+    description: What parts of the file should be returned.
+    required: false
+    allowEmptyValue: false
+    uniqueItems: true
+    collectionFormat: csv
+    type: array
+    items:
+      type: string
+      enum: ["body", "meta"]
+  DepthParam:
+    name: depth
+    in: query
+    description: How many levels of subfolders should be returned.
+    required: false
+    type: integer
+    format: int64
+    default: 0
+  OrionVersionParam:
+    name: Orion-Version
+    in: header
+    description: |
+      All server API requests must include the `Orion-Version` header. The produces an appropriate
+      response for that version of the client.
+    required: true
+    type: string
+    enum: ["1.0"]
