@@ -1,3 +1,4 @@
+---
 swagger: '2.0'
 info:
   title: Orion
@@ -6,13 +7,10 @@ info:
 # the domain of the service
 host: localhost:8081
 # array of all schemes that your API supports
-schemes:
-  - https
-  - http
+schemes: [https, http]
 # will be prefixed to all paths
 #basePath: /v1
-produces:
-  - application/json
+produces: ["application/json"]
 paths:
   /file/{path}:
     get:
@@ -20,17 +18,16 @@ paths:
         Get file or directory located at {path}.
       description: |
         Returns metadata or contents for a file or directory.
-      tags:
-        - File
+      tags: [File]
       parameters:
-        - $ref: '#/parameters/DepthParam'
-        - $ref: '#/parameters/FilePartsParam'
-        - $ref: '#/parameters/OrionVersionParam'
         - name: path
           in: path
           description: Path to the file or directory.
           required: true
           type: string
+        - $ref: '#/parameters/DepthParam'
+        - $ref: '#/parameters/PartsParam'
+        - $ref: '#/parameters/OrionVersionParam'
       produces: ["application/json", "application/octet-stream"]
       responses:
         200:
@@ -51,8 +48,7 @@ paths:
       description: |
         Workspace metadata is tied to the user owning the workspace. The top level attributes in the response describe
         the user that performed the request. The Workspaces element lists all workspaces accessible by that user.
-      tags:
-        - Workspace
+      tags: [Workspace]
       parameters:
         - $ref: '#/parameters/OrionVersionParam'
       responses:
@@ -67,8 +63,7 @@ paths:
   /workspace/{id}:
     get:
       summary: Get workspace by Id.
-      tags:
-        - Workspace
+      tags: [Workspace]
       parameters:
         - $ref: '#/parameters/OrionVersionParam'
         - name: id
@@ -90,11 +85,12 @@ definitions:
   AbstractHasChildren:
     allOf:
       - $ref: '#/definitions/AbstractHasLocation'
-    required:
-      - ChildrenLocation
+    required: [ChildrenLocation]
     properties:
       ChildrenLocation:
-        description: Location that provides this elements's children.
+        description: |
+          Location that provides this elements's children. Performing a `GET` on this
+          location should return children objects.
         type: string
       Children:
         description: The children of this element.
@@ -102,26 +98,29 @@ definitions:
         items:
           type: object
   AbstractHasContent:
-    required:
-      - ContentLocation
+    required: [ContentLocation]
     properties:
       ContentLocation:
+        description: |
+          The location of this object's contents. This field is typically only used when an object
+          has both metadata and non-metadata content, in which case `ContentLocation` refers to
+          the object's non-metadata content.
         type: string
   AbstractHasId:
-    required:
-      - Id
+    required: [Id]
     properties:
       Id:
         type: string
   AbstractHasLocation:
-    required:
-      - Location
+    required: [Location]
     properties:
       Location:
+        description: |
+          The location of this object. Performing a `GET` on the Location should return a representation
+          of this object.
         type: string
   AbstractHasName:
-    required:
-      - Name
+    required: [Name]
     properties:
       Name:
         type: string
@@ -135,6 +134,7 @@ definitions:
       - LocalTimeStamp
       - Name
       - Parents
+    description: Represents a file or directory.
     properties:
       Attributes:
         description: Additional platform-specific attributes of this file.
@@ -157,8 +157,7 @@ definitions:
         type: integer
         format: int64
         description: |
-          Length of this file in bytes. When `Directory == true`, this field is not required
-          to contain a meaningful value.
+          Length of this file in bytes. This field is not required to contain a meaningful value for directories.
       LocalTimeStamp:
         $ref: '#/definitions/TimeStamp'
         description: Time
@@ -265,7 +264,7 @@ definitions:
         enum: ["Error", "Warning", "Info", "Cancel", "Ok"]
 
 parameters:
-  FilePartsParam:
+  PartsParam:
     name: parts
     in: query
     description: What parts of the file should be returned.
@@ -289,8 +288,7 @@ parameters:
     name: Orion-Version
     in: header
     description: |
-      All server API requests must include the `Orion-Version` header. The produces an appropriate
-      response for that version of the client.
+      All server API requests must include the `Orion-Version` header.
     required: true
     type: string
     enum: ["1.0"]
